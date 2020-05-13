@@ -328,6 +328,10 @@ def train(train_data, test_data=None):
     with open(log_dir() + "test_stats.txt", "w") as fp:
         fp.write("loss={:.5f} f1_micro={:.5f} f1_macro={:.5f}".
                 format(val_cost, val_f1_mic, val_f1_mac))
+    with open("experiments.txt","a") as fp:
+        fp.write("Dataset prefix {} \n".format(FLAGS.train_prefix))
+        fp.write("Model {} \n".format(FLAGS.model))
+        fp.write("Supervised Graphsage avg time {} per epoch \n".format(avg_time))
 
 def main(argv=None):
     print("Loading training data..")

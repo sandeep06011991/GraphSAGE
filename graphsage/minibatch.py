@@ -225,6 +225,7 @@ class NodeMinibatchIterator(object):
         return label_vec
 
     def construct_adj(self):
+        # print("subsample adjacency matrix where each node has a fixed degree")
         adj = len(self.id2idx)*np.ones((len(self.id2idx)+1, self.max_degree))
         deg = np.zeros((len(self.id2idx),))
 

@@ -314,7 +314,10 @@ def train(train_data, test_data=None):
 
         if total_steps > FLAGS.max_total_steps:
                 break
-    
+    with open("experiments.txt","a") as fp:
+        fp.write("Dataset prefix {} \n".format(FLAGS.train_prefix))
+        fp.write("Model {} \n".format(FLAGS.model))
+        fp.write("Unsupervised Graphsage avg time {} per epoch \n".format(avg_time))
     print("Optimization Finished!")
     if FLAGS.save_embeddings:
         sess.run(val_adj_info.op)
