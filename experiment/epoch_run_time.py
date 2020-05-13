@@ -12,10 +12,9 @@ N_WALKS = 50
 
 flags = tf.app.flags
 FLAGS = flags.FLAGS
-flags.DEFINE_integer('gpu', 1, "which gpu to use.")
+flags.DEFINE_integer('gpu', 0, "which gpu to use.")
 tf.app.flags.DEFINE_boolean('log_device_placement', False,
                             """Whether to log device placement.""")
-flags.DEFINE_integer('gpu', 1, "which gpu to use.")
 os.environ["CUDA_VISIBLE_DEVICES"]=str(FLAGS.gpu)
 
 

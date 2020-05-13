@@ -107,3 +107,6 @@ ENV/
 *.pickle
 *.pkl
 
+*.zip
+reddit/
+ppi/
