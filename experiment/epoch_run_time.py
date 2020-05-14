@@ -102,11 +102,7 @@ def time_2_hop_neighbourhood_sampling(minibatch):
     sess.close()
     log("Time to neighbourhood sample 1 and 2 hops {}".format(end_time - start_time))
 
-'''
-    how to run !!!
-    python experiment/epoch_run_time.py ./example_data/toy-ppi
-'''
-if __name__ == "__main__":
+def run():
     global PREFIX
     import sys
     PREFIX = sys.argv[1]
@@ -120,7 +116,6 @@ if __name__ == "__main__":
     print("Number of nodes {}".format(G.number_of_nodes()))
     print("Number of Edges {}".format(G.number_of_edges()))
     import sys
-    sys.exit()
     if isinstance(list(class_map.values())[0], list):
         num_classes = len(list(class_map.values())[0])
     else:
@@ -132,3 +127,38 @@ if __name__ == "__main__":
     time_for_negative_sampling(minibatch)
     close_file()
     print("All Done !!! ")
+
+def print_adj_matrix_to_file():
+    global PREFIX
+    import sys
+    PREFIX = sys.argv[1]
+    print("PREFIX {}".format(PREFIX))
+    G, feats, id_map, walks, class_map = load_data(PREFIX)
+    if isinstance(list(class_map.values())[0], list):
+        num_classes = len(list(class_map.values())[0])
+    else:
+        num_classes = len(set(class_map.values()))
+    minibatch = getMiniBatchIterator(G, id_map, class_map, num_classes)
+    adj = minibatch.adj
+    fp = open("_adj_matrix","w")
+    fp.write("DATASET" + PREFIX + "\n")
+    fp.write("nd1 : < list of 128 sampled neighbours> ")
+    for ndid in G.nodes():
+        fp.write("{} :".format(ndid))
+        neighbours = adj[id_map[ndid]]
+        for n in neighbours:
+            fp.write("{} ".format(n))
+        fp.write("\n")
+    fp.close()
+
+
+def run_single_experiment():
+    print_adj_matrix_to_file()
+
+'''
+    how to run !!!
+    python experiment/epoch_run_time.py ./example_data/toy-ppi
+'''
+if __name__ == "__main__":
+    # run()
+    run_single_experiment()
