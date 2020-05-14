@@ -110,3 +110,5 @@ ENV/
 *.zip
 reddit/
 ppi/
+sup-*/
+unsup-*/

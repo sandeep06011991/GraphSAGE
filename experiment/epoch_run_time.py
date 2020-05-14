@@ -117,6 +117,10 @@ if __name__ == "__main__":
     open_log_file()
     log("GPU availability {}".format(is_available))
     G, feats, id_map, walks, class_map = load_data(PREFIX)
+    print("Number of nodes {}".format(G.number_of_nodes()))
+    print("Number of Edges {}".format(G.number_of_edges()))
+    import sys
+    sys.exit()
     if isinstance(list(class_map.values())[0], list):
         num_classes = len(list(class_map.values())[0])
     else:

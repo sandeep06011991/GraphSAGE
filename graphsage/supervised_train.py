@@ -259,9 +259,11 @@ def train(train_data, test_data=None):
 
     train_adj_info = tf.assign(adj_info, minibatch.adj)
     val_adj_info = tf.assign(adj_info, minibatch.test_adj)
+    no_epochs = FLAGS.epochs
+    total_epoch_time = 0
     for epoch in range(FLAGS.epochs): 
         minibatch.shuffle() 
-
+        s_time = time.time()
         iter = 0
         print('Epoch: %04d' % (epoch + 1))
         epoch_val_costs.append(0)
@@ -307,7 +309,8 @@ def train(train_data, test_data=None):
 
             if total_steps > FLAGS.max_total_steps:
                 break
-
+        
+        total_epoch_time = total_epoch_time + time.time() - s_time
         if total_steps > FLAGS.max_total_steps:
                 break
     
@@ -331,7 +334,7 @@ def train(train_data, test_data=None):
     with open("experiments.txt","a") as fp:
         fp.write("Dataset prefix {} \n".format(FLAGS.train_prefix))
         fp.write("Model {} \n".format(FLAGS.model))
-        fp.write("Supervised Graphsage avg time {} per epoch \n".format(avg_time))
+        fp.write("Supervised Graphsage avg time {} per epoch \n".format(total_epoch_time/no_epochs))
 
 def main(argv=None):
     print("Loading training data..")
