@@ -141,13 +141,13 @@ def print_adj_matrix_to_file():
     minibatch = getMiniBatchIterator(G, id_map, class_map, num_classes)
     adj = minibatch.adj
     fp = open("_adj_matrix","w")
-    fp.write("DATASET" + PREFIX + "\n")
-    fp.write("nd1 : < list of 128 sampled neighbours> ")
+    # fp.write("DATASET" + PREFIX + "\n")
+    # fp.write("nd1_id : < list of 128 sampled neighbours> \n")
     for ndid in G.nodes():
-        fp.write("{} :".format(ndid))
+        fp.write("{} ".format(int(id_map[ndid])))
         neighbours = adj[id_map[ndid]]
         for n in neighbours:
-            fp.write("{} ".format(n))
+            fp.write("{} ".format(int(n)))
         fp.write("\n")
     fp.close()
 
