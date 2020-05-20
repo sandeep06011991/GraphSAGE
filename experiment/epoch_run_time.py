@@ -1,4 +1,5 @@
 import sys,os
+from os import path
 sys.path.insert(0, os.getcwd())
 import time
 from graphsage.utils import load_data, run_random_walks
@@ -10,28 +11,36 @@ PREFIX = "./example_data/toy-ppi"
 file = None
 N_WALKS = 50
 
-flags = tf.app.flags
-FLAGS = flags.FLAGS
-flags.DEFINE_integer('gpu', 0, "which gpu to use.")
-tf.app.flags.DEFINE_boolean('log_device_placement', False,
-                            """Whether to log device placement.""")
-os.environ["CUDA_VISIBLE_DEVICES"]=str(FLAGS.gpu)
+# flags = tf.app.flags
+# FLAGS = flags.FLAGS
+# flags.DEFINE_integer('gpu', 0, "which gpu to use.")
+# tf.app.flags.DEFINE_boolean('log_device_placement', False,
+#                             """Whether to log device placement.""")
+os.environ["CUDA_VISIBLE_DEVICES"]=str(0)
 
+results = {}
 
-def open_log_file():
+def add_to_dict(k,v):
+    global results
+    results[k] = v
+
+def create_measurement_file():
+    e = path.exists("experiments.txt")
+    global results
     global file
-    file = open("experiments.txt",'a')
-    file.write("Dataset {} ##################### \n".format(PREFIX))
+    file = open("experiments.txt", 'a')
+    if not e:
+        file.write ("Dataset | GPU |  AdjMatrix | Random Wlk (CPU) | Sup-sampling  | Sup-Epoch | UnSup-sampling | UnSup-epoch \n")# print header
+        pass
+    # print values from dictionary
+    file.write("{} | {} | {}| {} | {} | {} | {} | {} \n".format(results['DATASET'],results['GPU'], results['ADJMATRIX'],
+                                                                results['RWK'],results['SSAMPLE']
+                                                       , results['SEPOCH'],results['UNSSAMPLE'], results['UNSEPOCH']))
+    file.close()
 
-def log(str):
-    global file
-    print(str)
-    file.write(str + "\n")
 
-def close_file():
-    global file
-    if file is not None:
-        file.close()
+
+
 
 # # Measure Look up time
 def time_to_do_random_walks(G):
@@ -39,11 +48,19 @@ def time_to_do_random_walks(G):
     start_time = time.time()
     run_random_walks(G, nodes, num_walks=N_WALKS)
     end_time = time.time()
-    log("CPU random walk time {}".format(end_time - start_time))
+    add_to_dict("RWK",end_time - start_time)
 
-def time_for_negative_sampling(minibatch):
-    label = tf.cast(minibatch.placeholders["batch"], dtype=tf.int64)
-    labels = tf.reshape(label,[tf.shape(label)[0],1])
+def time_for_unsupervised_sampling(G, id_map, walks, num_classes):
+    placeholders = {
+        'labels': tf.placeholder(tf.float32, shape=(None, num_classes), name='labels'),
+        'batch1': tf.placeholder(tf.int32, shape=(None,), name='batch1'),
+        'batch2': tf.placeholder(tf.int32, shape=(None,), name='batch2'),
+        'dropout': tf.placeholder_with_default(0., shape=(), name='dropout'),
+        'batch_size': tf.placeholder(tf.int32, name='batch_size'),
+    }
+    minibatch = EdgeMinibatchIterator(G, id_map, placeholders, walks, batch_size=512, max_degree=128)
+    label = tf.cast(minibatch.placeholders["batch2"], dtype=tf.int64)
+    labels = tf.reshape(label,[placeholders['batch_size'],1])
     neg_samples, _, _ = (tf.nn.fixed_unigram_candidate_sampler(
         true_classes=labels,
         num_true=1,
@@ -52,15 +69,25 @@ def time_for_negative_sampling(minibatch):
         range_max=len(minibatch.deg),
         distortion=0.75,
         unigrams=minibatch.deg.tolist()))
+    pruned_adj_matrix = tf.constant(minibatch.adj, dtype=tf.int32)
+    sampler = UniformNeighborSampler(pruned_adj_matrix)
+    def get_two_hop_sampled(input_t):
+        sample1 = sampler((input_t, 25))
+        reshaped_sample1 = tf.reshape(sample1, [tf.shape(sample1)[0] * 25, ])
+        sample2 = sampler((reshaped_sample1, 10))
+        return sample2
+    source = get_two_hop_sampled(minibatch.placeholders["batch1"])
+    target = get_two_hop_sampled(minibatch.placeholders["batch2"])
+    neg_samples = get_two_hop_sampled(neg_samples)
     minibatch.shuffle()
     sess = tf.Session()
     start_time = time.time()
     while not minibatch.end():
-        feed_dict, _ = minibatch.next_minibatch_feed_dict()
-        sess.run(neg_samples, feed_dict)
+        feed_dict = minibatch.next_minibatch_feed_dict()
+        sess.run([source,target,neg_samples], feed_dict)
     end_time = time.time()
     sess.close()
-    log("Negative sampling time {}".format(end_time - start_time))
+    add_to_dict("UNSSAMPLE",(end_time - start_time))
 
 
 
@@ -84,9 +111,9 @@ def time_to_do_adj_matrix_construction(minibatch):
     start_time = time.time()
     minibatch.construct_adj()
     end_time = time.time()
-    log("Time to construct adj matrix does not involve gpu{}".format(end_time - start_time))
+    add_to_dict("ADJMATRIX",(end_time - start_time))
 
-def time_2_hop_neighbourhood_sampling(minibatch):
+def supervised_sampling(minibatch):
     pruned_adj_matrix = tf.constant(minibatch.adj, dtype=tf.int32)
     sampler = UniformNeighborSampler(pruned_adj_matrix)
     sample1 = sampler((minibatch.placeholders["batch"], 10))
@@ -100,19 +127,49 @@ def time_2_hop_neighbourhood_sampling(minibatch):
         sess.run(sample2 , feed_dict)
     end_time = time.time()
     sess.close()
-    log("Time to neighbourhood sample 1 and 2 hops {}".format(end_time - start_time))
+    add_to_dict("SSAMPLE",(end_time - start_time))
+
+def supervised_epoch_time(PREFIX):
+    flags = tf.app.flags
+    FLAGS = flags.FLAGS
+    from graphsage.supervised_train import train
+    FLAGS.train_prefix = PREFIX
+    FLAGS.model = 'graphsage_mean'
+    FLAGS.sigmoid = True
+    train_data = load_data(FLAGS.train_prefix)
+    time = train(train_data)
+    add_to_dict('SEPOCH',time)
+
+def del_all_flags(FLAGS):
+    flags_dict = FLAGS._flags()
+    keys_list = [keys for keys in flags_dict]
+    for keys in keys_list:
+        FLAGS.__delattr__(keys)
+
+def unsupervised_epoch_time(PREFIX):
+    tf.reset_default_graph()
+    flags = tf.app.flags
+    FLAGS = flags.FLAGS
+    del_all_flags(tf.flags.FLAGS)
+    from graphsage.unsupervised_train import train
+    FLAGS.train_prefix = PREFIX
+    FLAGS.model = 'gcn'
+    FLAGS.validate_iter = 10
+    FLAGS.max_total_steps = 1000
+    train_data = load_data(FLAGS.train_prefix,load_walks=True)
+    t = train(train_data)
+    add_to_dict("UNSEPOCH",t)
 
 def run():
     global PREFIX
     import sys
     PREFIX = sys.argv[1]
-    print("PREFIX {}".format(PREFIX))
+    add_to_dict("DATASET",(PREFIX))
     is_available = tf.test.is_gpu_available(
         cuda_only=False, min_cuda_compute_capability=None
     )
-    open_log_file()
-    log("GPU availability {}".format(is_available))
-    G, feats, id_map, walks, class_map = load_data(PREFIX)
+    add_to_dict ("GPU",is_available)
+    G, feats, id_map, walks, class_map = load_data(PREFIX,load_walks=True)
     print("Number of nodes {}".format(G.number_of_nodes()))
     print("Number of Edges {}".format(G.number_of_edges()))
     import sys
@@ -123,9 +180,11 @@ def run():
     time_to_do_random_walks(G)
     minibatch = getMiniBatchIterator(G, id_map, class_map, num_classes)
     time_to_do_adj_matrix_construction(minibatch)
-    time_2_hop_neighbourhood_sampling(minibatch)
-    time_for_negative_sampling(minibatch)
-    close_file()
+    supervised_sampling(minibatch)
+    time_for_unsupervised_sampling(G, id_map, walks , num_classes)
+    supervised_epoch_time(PREFIX)
+    unsupervised_epoch_time(PREFIX)
+    create_measurement_file()
     print("All Done !!! ")
 
 def print_adj_matrix_to_file():
@@ -160,5 +219,5 @@ def run_single_experiment():
     python experiment/epoch_run_time.py ./example_data/toy-ppi
 '''
 if __name__ == "__main__":
-    # run()
-    run_single_experiment()
+    run()
+    # run_single_experiment()
