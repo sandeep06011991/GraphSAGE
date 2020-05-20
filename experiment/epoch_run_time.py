@@ -51,6 +51,7 @@ def time_to_do_random_walks(G):
     add_to_dict("RWK",end_time - start_time)
 
 def time_for_unsupervised_sampling(G, id_map, walks, num_classes):
+    tf.reset_default_graph()
     placeholders = {
         'labels': tf.placeholder(tf.float32, shape=(None, num_classes), name='labels'),
         'batch1': tf.placeholder(tf.int32, shape=(None,), name='batch1'),
@@ -58,7 +59,7 @@ def time_for_unsupervised_sampling(G, id_map, walks, num_classes):
         'dropout': tf.placeholder_with_default(0., shape=(), name='dropout'),
         'batch_size': tf.placeholder(tf.int32, name='batch_size'),
     }
-    minibatch = EdgeMinibatchIterator(G, id_map, placeholders, walks, batch_size=512, max_degree=128)
+    minibatch = EdgeMinibatchIterator(G, id_map, placeholders, walks, batch_size=512, max_degree=100)
     label = tf.cast(minibatch.placeholders["batch2"], dtype=tf.int64)
     labels = tf.reshape(label,[placeholders['batch_size'],1])
     neg_samples, _, _ = (tf.nn.fixed_unigram_candidate_sampler(
@@ -82,9 +83,14 @@ def time_for_unsupervised_sampling(G, id_map, walks, num_classes):
     minibatch.shuffle()
     sess = tf.Session()
     start_time = time.time()
+    i = 0
+    max_steps = 1000
     while not minibatch.end():
         feed_dict = minibatch.next_minibatch_feed_dict()
         sess.run([source,target,neg_samples], feed_dict)
+        i = i + 1
+        if(i>1000):
+            break
     end_time = time.time()
     sess.close()
     add_to_dict("UNSSAMPLE",(end_time - start_time))
@@ -130,6 +136,7 @@ def supervised_sampling(minibatch):
     add_to_dict("SSAMPLE",(end_time - start_time))
 
 def supervised_epoch_time(PREFIX):
+    tf.reset_default_graph()
     flags = tf.app.flags
     FLAGS = flags.FLAGS
     from graphsage.supervised_train import train
@@ -158,6 +165,7 @@ def unsupervised_epoch_time(PREFIX):
     FLAGS.max_total_steps = 1000
     train_data = load_data(FLAGS.train_prefix,load_walks=True)
     t = train(train_data)
+    print("UNSEPOCH {}".format(t))
     add_to_dict("UNSEPOCH",t)
 
 def run():
