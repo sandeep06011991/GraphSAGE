@@ -276,6 +276,7 @@ def train(train_data, test_data=None):
                     model.mrr, model.outputs1], feed_dict=feed_dict)
             train_cost = outs[2]
             train_mrr = outs[5]
+            '''
             if train_shadow_mrr is None:
                 train_shadow_mrr = train_mrr#
             else:
@@ -308,6 +309,7 @@ def train(train_data, test_data=None):
                       "val_mrr_ema=", "{:.5f}".format(shadow_mrr), # exponential moving average
                       "time=", "{:.5f}".format(avg_time))
 
+            '''
             iter += 1
             total_steps += 1
 
@@ -316,6 +318,8 @@ def train(train_data, test_data=None):
         total_epoch_time = total_epoch_time + time.time() - s_time
         if total_steps > FLAGS.max_total_steps:
                 break
+    print("total steps {}".format(total_steps))
+    print("total_epochs {}".format(no_epochs))
     # with open("experiments.txt","a") as fp:
     #     fp.write("Dataset prefix {} \n".format(FLAGS.train_prefix))
     #     fp.write("Model {} \n".format(FLAGS.model))

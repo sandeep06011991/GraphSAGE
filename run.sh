@@ -1,7 +1,7 @@
 export LD_LIBRARY_PATH=/usr/local/cuda-9.0/lib64
 rm  -f experiments.txt
 #python experiment/epoch_run_time.py ./example_data/toy-ppi
-python experiment/epoch_run_time.py ./example_data/reddit/reddit
+#python experiment/epoch_run_time.py ./example_data/reddit/reddit
 python experiment/epoch_run_time.py ./example_data/ppi/ppi
 #python experiment/data_post_process.py ./example_data/reddit/reddit && cp edgelist reddit_edgelist
 #python experiment/data_post_process.py ./example_data/ppi/ppi && cp edgelist ppi_edgelist
