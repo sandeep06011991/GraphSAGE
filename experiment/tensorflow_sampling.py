@@ -3,9 +3,9 @@ import numpy as np
 import sys,os
 from os import path
 sys.path.insert(0, os.getcwd())
-def testfun():
+def run():
     dataset = sys.argv[1]
-    fp = open("dataset",'r')
+    fp = open(dataset,'r')
     nodes = {}
     maxv = 0
     for line in fp:
@@ -20,6 +20,7 @@ def testfun():
         maxv = max(a,maxv)
         maxv = max(b,maxv)
     max_degree = 128
+    print("nodes {} {}".format(maxv,len(nodes)))
     adj_matrix =  np.zeros((maxv+1,max_degree))
     train_nodes = []
     for n in nodes:
@@ -33,8 +34,10 @@ def testfun():
             neighbors = np.random.choice(neighbors, max_degree, replace=True)
         adj_matrix[n , :] = neighbors
     from graphsage.neigh_samplers import UniformNeighborSampler
-    sampler = UniformNeighborSampler(adj_matrix)
     import tensorflow as tf
+    print(adj_matrix.shape)
+    adj_matrixph = tf.placeholder(tf.int32,shape=adj_matrix.shape,name='adj_matrix')
+    sampler = UniformNeighborSampler(adj_matrixph)
     batch =  tf.placeholder(tf.int32, shape=(None,), name='batch')
     sample1 = sampler((batch, 25))
     sample1 = tf.cast(sample1, dtype=tf.int64)
@@ -48,12 +51,13 @@ def testfun():
     batchsize = 1
     while  i < len(train_nodes):
         offset = min(len(train_nodes),i+batchsize)
-        feed_dict= {batch:train_nodes[i:offset]}
+        feed_dict= {batch:train_nodes[i:offset],adj_matrixph:adj_matrix}
         sess.run(sample2, feed_dict)
         i = i+offset
     end_time = time.time()
     sess.close()
-    with open("tf_measurements.txt") as fp:
+    print("Time measured for {} is {}".format(dataset,end_time-start_time))
+    with open("tf_measurements.txt","w") as fp:
         fp.write("{} | {}".format(dataset,end_time-start_time))
 
 if __name__ == "__main__":
