@@ -5,8 +5,8 @@ export LD_LIBRARY_PATH=/usr/local/cuda-9.0/lib64
 #python experiment/epoch_run_time.py ./example_data/ppi/ppi
  
 echo "dataset | gpu_avail | constant/Feed | is_projected(or Actual)|  time \n" >> tf_measurements.txt
-python experiment/tensorflow_sampling.py ../nextdoor-experiments/datasets/cit-Patents.txt gpu 240
-python experiment/tensorflow_sampling.py ../nextdoor-experiments/datasets/cit-Patents.txt cpu 240
+python experiment/tensorflow_sampling.py ../datasets/cit-Patents.txt gpu 240
+python experiment/tensorflow_sampling.py ../datasets/cit-Patents.txt cpu 240
 
 
 
