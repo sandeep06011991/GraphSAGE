@@ -4,7 +4,7 @@ import sys,os
 from os import path
 sys.path.insert(0, os.getcwd())
 
-def use_constant_adj_matrix(dataset,adj_matrix,train_nodes,gpu_avail):
+def use_constant_adj_matrix(dataset,adj_matrix,train_nodes,gpu_avail,timeout):
     from graphsage.neigh_samplers import UniformNeighborSampler
     import tensorflow as tf
     a,b = (adj_matrix.shape)
@@ -28,7 +28,7 @@ def use_constant_adj_matrix(dataset,adj_matrix,train_nodes,gpu_avail):
         feed_dict= {batch:train_nodes[i:offset]}
         sess.run(sample2, feed_dict)
         i = i+offset
-        if time.time()-start_time > 120:
+        if time.time()-start_time > timeout:
             interrupted = True
             break
     end_time = time.time()
@@ -41,7 +41,7 @@ def use_constant_adj_matrix(dataset,adj_matrix,train_nodes,gpu_avail):
             fp.write("{} | {} | {} | {} | {} \n".format(dataset,gpu_avail,"CONSTANT",interrupted,(end_time-start_time)*(len(train_nodes)/offset)))
 
 
-def use_feed_dict_matrix(dataset,adj_matrix,train_nodes,gpu_avail):
+def use_feed_dict_matrix(dataset,adj_matrix,train_nodes,gpu_avail,timeout):
     from graphsage.neigh_samplers import UniformNeighborSampler
     import tensorflow as tf
     adj_matrixph = tf.placeholder(tf.int32,shape=adj_matrix.shape,name='adj_matrix')
@@ -63,7 +63,7 @@ def use_feed_dict_matrix(dataset,adj_matrix,train_nodes,gpu_avail):
         feed_dict= {batch:train_nodes[i:offset],adj_matrixph:adj_matrix}
         sess.run(sample2, feed_dict)
         i = i+offset
-        if time.time()-start_time > 120:
+        if time.time()-start_time > timeout:
             interrupted = True
             break
     end_time = time.time()
@@ -78,7 +78,7 @@ def use_feed_dict_matrix(dataset,adj_matrix,train_nodes,gpu_avail):
 def run():
     dataset = sys.argv[1]
     gpu = sys.argv[2]
-
+    timeout = int(sys.argv[3])
     if gpu == "gpu":
         os.environ["CUDA_VISIBLE_DEVICES"]="0"
     else:
@@ -118,9 +118,9 @@ def run():
     import tensorflow as tf
     gpu_avail = tf.test.is_gpu_available()
 
-    use_feed_dict_matrix(dataset,adj_matrix,train_nodes,gpu_avail)
+    use_feed_dict_matrix(dataset,adj_matrix,train_nodes,gpu_avail,timeout)
     if gpu_constant_possible:
-        use_constant_adj_matrix(dataset,adj_matrix,train_nodes,gpu_avail)
+        use_constant_adj_matrix(dataset,adj_matrix,train_nodes,gpu_avail,timeout)
 
 if __name__ == "__main__":
     run()
