@@ -21,7 +21,7 @@ def use_constant_adj_matrix(dataset,adj_matrix,train_nodes,gpu_avail,timeout):
     import time
     start_time = time.time()
     i = 0
-    batchsize = 1
+    batchsize = 1024*1024
     interrupted = False
     while  i < len(train_nodes):
         offset = min(len(train_nodes),i+batchsize)
@@ -56,7 +56,7 @@ def use_feed_dict_matrix(dataset,adj_matrix,train_nodes,gpu_avail,timeout):
     import time
     start_time = time.time()
     i = 0
-    batchsize = 1
+    batchsize = 1024*1024
     interrupted = False
     while  i < len(train_nodes):
         offset = min(len(train_nodes),i+batchsize)
@@ -113,7 +113,7 @@ def run():
         adj_matrix[n , :] = neighbors
     a,b = (adj_matrix.shape)
     gpu_constant_possible = False
-    if a*b < 2 * 1024 * 1024 * 1024 / 4 :
+    if a*b <  1024 * 1024 * 128  :
         gpu_constant_possible = True
     import tensorflow as tf
     gpu_avail = tf.test.is_gpu_available()
