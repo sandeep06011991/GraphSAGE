@@ -319,3 +319,47 @@ class NodeMinibatchIterator(object):
         """
         self.train_nodes = np.random.permutation(self.train_nodes)
         self.batch_num = 0
+
+import GraphSampler
+
+class NodeMinibatchIteratorWithKHop(NodeMinibatchIterator):
+    """
+    This minibatch iterator iterates over nodes for supervised learning.
+
+    G -- networkx graph
+    id2idx -- dict mapping node ids to integer values indexing feature tensor
+    placeholders -- standard tensorflow placeholders object for feeding
+    label_map -- map from node ids to class values (integer or list)
+    num_classes -- number of output classes
+    batch_size -- size of the minibatches
+    max_degree -- maximum size of the downsampled adjacency lists
+    layer_infos
+    """
+
+    def __init__(self, G, id2idx,
+                 placeholders, label_map, num_classes,layer_infos,
+                 batch_size=100, max_degree=25,
+                 **kwargs):
+        super(NodeMinibatchIteratorWithKHop,self).__init__(G, id2idx,
+                 placeholders, label_map, num_classes,
+                 batch_size=batch_size,
+                 max_degree=max_degree,
+                 **kwargs)
+        self.khop_sampler = GraphSampler.GraphKHopSampler(G,layer_infos)
+
+    def end(self):
+        return self.batch_num * self.batch_size >= len(self.train_nodes)
+
+    def batch_feed_dict(self, batch_nodes, val=False):
+        batch1id = batch_nodes
+        batch1 = [self.id2idx[n] for n in batch1id]
+
+        labels = np.vstack([self._make_label_vec(node) for node in batch1id])
+        feed_dict = dict()
+        khop = self.khop_sampler.getKHopSamples(batch1)
+        feed_dict.update({self.placeholders['batch_size']: len(batch1)})
+        feed_dict.update({self.placeholders['batch']: batch1})
+        feed_dict.update({self.placeholders['hop1']:khop["hop1"]})
+        feed_dict.update({self.placeholders['hop2']: khop["hop2"]})
+        feed_dict.update({self.placeholders['labels']: labels})
+        return feed_dict, labels
