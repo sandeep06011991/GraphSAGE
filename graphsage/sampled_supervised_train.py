@@ -44,10 +44,9 @@ flags.DEFINE_integer('dim_1', 128, 'Size of output dim (final is 2x this, if usi
 flags.DEFINE_integer('dim_2', 128, 'Size of output dim (final is 2x this, if using concat)')
 flags.DEFINE_boolean('random_context', True, 'Whether to use random context or direct edges')
 # flags.DEFINE_integer('batch_size', 512, 'minibatch size.')
-flags.DEFINE_integer('batch_size', 250, 'minibatch size')
+flags.DEFINE_integer('batch_size', 1, 'minibatch size')
 flags.DEFINE_boolean('sigmoid', False, 'whether to use sigmoid loss')
-flags.DEFINE_integer('identity_dim', 0,
-                     'Set to positive value to use identity embedding features of that dimension. Default 0.')
+flags.DEFINE_integer('identity_dim', 0, 'Set to positive value to use identity embedding features of that dimension. Default 0.')
 
 # logging, saving, validation settings etc.
 flags.DEFINE_string('base_log_dir', '.', 'base directory for logging and saving embeddings')
@@ -208,10 +207,9 @@ def train(train_data, test_data=None):
 
             t = time.time()
             # Training step
-
-            sess.run([model.preds],feed_dict=feed_dict)
-            assert (False)
-            # outs = sess.run([merged, model.opt_op, model.loss, model.preds], feed_dict=feed_dict)
+            # sess.run([model.preds],feed_dict=feed_dict)
+            # assert (False)
+            outs = sess.run([merged, model.opt_op, model.loss, model.preds], feed_dict=feed_dict)
             train_cost = outs[2]
 
             if iter % FLAGS.validate_iter == 0:

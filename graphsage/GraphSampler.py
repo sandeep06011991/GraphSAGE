@@ -7,13 +7,15 @@ class GraphKHopSampler():
         self.support_sizes =  []
         p = 1
         for l in range(len(layer_infos)):
-            self.support_sizes.append(p * layer_infos[l].num_samples)
+            # Reference: neigh_sampler.py on why this order of layer_infos is followed
+            self.support_sizes.append(p * layer_infos[len(layer_infos)-1-l].num_samples)
             p = self.support_sizes[l]
-        assert(self.support_sizes == [25,250])
-    # Scratch function, multiplies the list of nodes to match a khop sampling.
+        assert(self.support_sizes == [10,250])
+
+    # Scratch function
     # Function has to be replaced with next door
     # nodes of batch_size
-    # returns k_hop sampled batch_size * hop1 * hop2
+    # returns a dictionarky khop with {"hop1":10*len(nodes),"hop2":250*len(nodes)}
     def getKHopSamples(self, nodes):
         khop = {}
         for i in range(len(self.layer_infos)):

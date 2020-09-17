@@ -187,8 +187,25 @@ class SampledSupervisedGraphsage(models.SampleAndAggregate):
 
     def build(self):
         # samples1, support_sizes1 = self.sample(self.inputs1, self.layer_infos)
-        samples1 = [self.inputs1, self.hop1, self.hop2]
-        support_sizes1 = [self.batch_size, self.batch_size*25, self.batch_size*250]
+        # No need to sample use next door
+        batch_size = self.batch_size
+        samples = [self.inputs1]
+        # size of convolution support at each layer per node
+        support_size = 1
+        support_sizes = [support_size]
+        layer_infos = self.layer_infos
+        for k in range(len(layer_infos)):
+            t = len(layer_infos) - k - 1
+            support_size *= layer_infos[t].num_samples
+            if k ==0:
+                node = self.hop1
+            else:
+                assert(k==1)
+                node = self.hop2
+            samples.append(tf.reshape(node, [support_size * batch_size,]))
+            support_sizes.append(support_size)
+        print(samples)
+        samples1, support_sizes1 = samples, support_sizes
 
         num_samples = [layer_info.num_samples for layer_info in self.layer_infos]
         # num_samples.insert(0,1)
@@ -234,59 +251,10 @@ class SampledSupervisedGraphsage(models.SampleAndAggregate):
 
         tf.summary.scalar('loss', self.loss)
 
-    def aggregate(self, samples, input_features, dims, num_samples, support_sizes, batch_size=None,
-            aggregators=None, name=None, concat=False, model_size="small"):
-        """ At each layer, aggregate hidden representations of neighbors to compute the hidden representations
-            at next layer.
-        Args:
-            samples: a list of samples of variable hops away for convolving at each layer of the
-                network. Length is the number of layers + 1. Each is a vector of node indices.
-            input_features: the input features for each sample of various hops away.
-            dims: a list of dimensions of the hidden representations from the input layer to the
-                final layer. Length is the number of layers + 1.
-            num_samples: list of number of samples for each layer.
-            support_sizes: the number of nodes to gather information from for each layer.
-            batch_size: the number of inputs (different for batch inputs and negative samples).
-        Returns:
-            The hidden representation at the final layer for all nodes in batch
-        """
 
-        if batch_size is None:
-            batch_size = self.batch_size
+    def predict(self):
+        if self.sigmoid_loss:
+            return tf.nn.sigmoid(self.node_preds)
+        else:
+            return tf.nn.softmax(self.node_preds)
 
-        # length: number of layers + 1, going top down
-        # Hidden nodes should be fed in directly through nextdoor
-        hidden = [tf.nn.embedding_lookup(input_features, node_samples) for node_samples in samples]
-        new_agg = aggregators is None
-        if new_agg:
-            aggregators = []
-
-        for layer in range(len(num_samples)):
-            if new_agg:
-                dim_mult = 2 if concat and (layer != 0) else 1
-                # aggregator at current layer
-                if layer == len(num_samples) - 1:
-                    aggregator = self.aggregator_cls(dim_mult*dims[layer], dims[layer+1], act=lambda x : x,
-                            dropout=self.placeholders['dropout'],
-                            name=name, concat=concat, model_size=model_size)
-                else:
-                    aggregator = self.aggregator_cls(dim_mult*dims[layer], dims[layer+1],
-                            dropout=self.placeholders['dropout'],
-                            name=name, concat=concat, model_size=model_size)
-                aggregators.append(aggregator)
-            # aggregator = aggregators[layer]
-        # hidden representation at current layer for all support nodes that are various hops away
-        # Initial hidden representation of 2 hops away
-        # as layer increases, the number of support nodes needed decreases
-        for h in range(len(num_samples)-1):
-            hop = len(num_samples)-1 - h
-            dim_mult = 2 if concat and (layer != 0) else 1
-            neigh_dims = [batch_size * support_sizes[hop],
-                          num_samples[hop - 1],
-                          dim_mult*dims[layer]]
-
-            h = aggregators[hop]((hidden[hop-1],
-                            tf.reshape(hidden[hop], neigh_dims)))
-
-            hidden[hop-1] = h
-        return hidden[0], aggregators
