@@ -150,7 +150,7 @@ class SampledSupervisedGraphsage(models.SampleAndAggregate):
 
         models.GeneralizedModel.__init__(self, **kwargs)
 
-        self.aggregator_cls = MeanPoolingAggregator
+        self.aggregator_cls = MeanAggregator
 
         # get info from placeholders...
         self.inputs1 = placeholders['batch']

@@ -8,7 +8,7 @@ import numpy as np
 import sklearn
 from sklearn import metrics
 
-from graphsage.supervised_models import SupervisedGraphsage, SampledSupervisedGraphsage
+from graphsage.supervised_models import SupervisedGraphsage
 from graphsage.models import SAGEInfo
 from graphsage.minibatch import NodeMinibatchIterator
 from graphsage.neigh_samplers import UniformNeighborSampler
@@ -44,8 +44,7 @@ flags.DEFINE_integer('samples_3', 0, 'number of users samples in layer 3. (Only 
 flags.DEFINE_integer('dim_1', 128, 'Size of output dim (final is 2x this, if using concat)')
 flags.DEFINE_integer('dim_2', 128, 'Size of output dim (final is 2x this, if using concat)')
 flags.DEFINE_boolean('random_context', True, 'Whether to use random context or direct edges')
-# flags.DEFINE_integer('batch_size', 512, 'minibatch size.')
-flags.DEFINE_integer('batch_size',250,'minibatch size')
+flags.DEFINE_integer('batch_size', 512, 'minibatch size.')
 flags.DEFINE_boolean('sigmoid', False, 'whether to use sigmoid loss')
 flags.DEFINE_integer('identity_dim', 0, 'Set to positive value to use identity embedding features of that dimension. Default 0.')
 
@@ -145,7 +144,6 @@ def train(train_data, test_data=None):
             batch_size=FLAGS.batch_size,
             max_degree=FLAGS.max_degree, 
             context_pairs = context_pairs)
-    return
     adj_info_ph = tf.placeholder(tf.int32, shape=minibatch.adj.shape)
     adj_info = tf.Variable(adj_info_ph, trainable=False, name="adj_info")
 
@@ -236,21 +234,7 @@ def train(train_data, test_data=None):
                                      sigmoid_loss = FLAGS.sigmoid,
                                      identity_dim = FLAGS.identity_dim,
                                      logging=True)
-    elif FLAGS.model == 'graphsage_maxpool_sampled':
-        sampler = UniformNeighborSampler(adj_info)
-        layer_infos = [SAGEInfo("node", sampler, FLAGS.samples_1, FLAGS.dim_1),
-                            SAGEInfo("node", sampler, FLAGS.samples_2, FLAGS.dim_2)]
 
-        model =  SampledSupervisedGraphsage(num_classes, placeholders,
-                                    features,
-                                    adj_info,
-                                    minibatch.deg,
-                                     layer_infos=layer_infos,
-                                     aggregator_type="meanpool",
-                                     model_size=FLAGS.model_size,
-                                     sigmoid_loss = FLAGS.sigmoid,
-                                     identity_dim = FLAGS.identity_dim,
-                                     logging=True)
     else:
         raise Exception('Error: model name unrecognized.')
 
