@@ -186,26 +186,26 @@ class SampledSupervisedGraphsage(models.SampleAndAggregate):
 
 
     def build(self):
-        # samples1, support_sizes1 = self.sample(self.inputs1, self.layer_infos)
+        samples1, support_sizes1 = self.sample(self.inputs1, self.layer_infos)
         # No need to sample use next door
-        batch_size = self.batch_size
-        samples = [self.inputs1]
-        # size of convolution support at each layer per node
-        support_size = 1
-        support_sizes = [support_size]
-        layer_infos = self.layer_infos
-        for k in range(len(layer_infos)):
-            t = len(layer_infos) - k - 1
-            support_size *= layer_infos[t].num_samples
-            if k ==0:
-                node = self.hop1
-            else:
-                assert(k==1)
-                node = self.hop2
-            samples.append(tf.reshape(node, [support_size * batch_size,]))
-            support_sizes.append(support_size)
-        print(samples)
-        samples1, support_sizes1 = samples, support_sizes
+        # batch_size = self.batch_size
+        # samples = [self.inputs1]
+        # # size of convolution support at each layer per node
+        # support_size = 1
+        # support_sizes = [support_size]
+        # layer_infos = self.layer_infos
+        # for k in range(len(layer_infos)):
+        #     t = len(layer_infos) - k - 1
+        #     support_size *= layer_infos[t].num_samples
+        #     if k ==0:
+        #         node = self.hop1
+        #     else:
+        #         assert(k==1)
+        #         node = self.hop2
+        #     samples.append(tf.reshape(node, [support_size * batch_size,]))
+        #     support_sizes.append(support_size)
+        # print(samples)
+        # samples1, support_sizes1 = samples, support_sizes
 
         num_samples = [layer_info.num_samples for layer_info in self.layer_infos]
         # num_samples.insert(0,1)

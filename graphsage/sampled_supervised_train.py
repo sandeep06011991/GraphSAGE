@@ -10,6 +10,7 @@ from sklearn import metrics
 
 from graphsage.supervised_models import SampledSupervisedGraphsage
 from graphsage.models import SAGEInfo
+from graphsage.neigh_samplers import UniformNeighborSampler
 from graphsage.minibatch import NodeMinibatchIteratorWithKHop
 from graphsage.utils import load_data
 
@@ -33,7 +34,7 @@ flags.DEFINE_string("model_size", "small", "Can be big or small; model specific 
 flags.DEFINE_string('train_prefix', '', 'prefix identifying training data. must be specified.')
 
 # left to default values in main experiments
-flags.DEFINE_integer('epochs', 10, 'number of epochs to train.')
+flags.DEFINE_integer('epochs', 50, 'number of epochs to train.')
 flags.DEFINE_float('dropout', 0.0, 'dropout rate (1 - keep probability).')
 flags.DEFINE_float('weight_decay', 0.0, 'weight for l2 loss on embedding matrix.')
 flags.DEFINE_integer('max_degree', 128, 'maximum node degree.')
@@ -160,12 +161,14 @@ def train(train_data, test_data=None):
 
     adj_info_ph = tf.placeholder(tf.int32, shape=minibatch.adj.shape)
     adj_info = tf.Variable(adj_info_ph, trainable=False, name="adj_info")
-
+    sampler = UniformNeighborSampler(adj_info)
+    layer_infos = [SAGEInfo("node", sampler, FLAGS.samples_1, FLAGS.dim_1),
+                       SAGEInfo("node", sampler, FLAGS.samples_2, FLAGS.dim_2)]
     model = SampledSupervisedGraphsage(num_classes, placeholders,
                                            features,
                                            adj_info,
                                            minibatch.deg,
-                                           layer_infos=layer_infos_top_down,
+                                           layer_infos=layer_infos,
                                            model_size=FLAGS.model_size,
                                            sigmoid_loss=FLAGS.sigmoid,
                                            identity_dim=FLAGS.identity_dim,

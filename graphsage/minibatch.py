@@ -359,7 +359,7 @@ class NodeMinibatchIteratorWithKHop(NodeMinibatchIterator):
         khop = self.khop_sampler.getKHopSamples(batch1)
         feed_dict.update({self.placeholders['batch_size']: len(batch1)})
         feed_dict.update({self.placeholders['batch']: batch1})
-        feed_dict.update({self.placeholders['hop1']:khop["hop1"]})
-        feed_dict.update({self.placeholders['hop2']: khop["hop2"]})
+        # feed_dict.update({self.placeholders['hop1']:khop["hop1"]})
+        # feed_dict.update({self.placeholders['hop2']: khop["hop2"]})
         feed_dict.update({self.placeholders['labels']: labels})
         return feed_dict, labels
