@@ -346,6 +346,7 @@ class NodeMinibatchIteratorWithKHop(NodeMinibatchIterator):
                  max_degree=max_degree,
                  **kwargs)
         self.khop_sampler = GraphSampler.GraphKHopSampler(G,layer_infos)
+        self.khop_cache = None
 
     def end(self):
         return self.batch_num * self.batch_size >= len(self.train_nodes)
@@ -359,7 +360,7 @@ class NodeMinibatchIteratorWithKHop(NodeMinibatchIterator):
         khop = self.khop_sampler.getKHopSamples(batch1)
         feed_dict.update({self.placeholders['batch_size']: len(batch1)})
         feed_dict.update({self.placeholders['batch']: batch1})
-        # feed_dict.update({self.placeholders['hop1']:khop["hop1"]})
-        # feed_dict.update({self.placeholders['hop2']: khop["hop2"]})
+        feed_dict.update({self.placeholders['hop1']:khop["hop1"]})
+        feed_dict.update({self.placeholders['hop2']: khop["hop2"]})
         feed_dict.update({self.placeholders['labels']: labels})
         return feed_dict, labels
