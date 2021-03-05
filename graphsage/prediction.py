@@ -3,7 +3,7 @@ from __future__ import print_function
 
 from graphsage.inits import zeros
 from graphsage.layers import Layer
-import tensorflow as tf
+import tensorflow.compat.v1 as tf
 
 flags = tf.app.flags
 FLAGS = flags.FLAGS

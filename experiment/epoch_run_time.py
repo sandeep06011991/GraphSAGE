@@ -1,12 +1,16 @@
+import networkx as nx
+from ctypes import CDLL
 import sys,os
 from os import path
 sys.path.insert(0, os.getcwd())
-import time
-from graphsage.utils import load_data, run_random_walks
+import time,random
+#from graphsage.utils import load_data, run_random_walks
 from graphsage.minibatch import NodeMinibatchIterator,EdgeMinibatchIterator
 from graphsage.neigh_samplers import UniformNeighborSampler
-import tensorflow as tf
-
+import tensorflow.compat.v1 as tf
+import numpy as np
+tf.disable_eager_execution()
+tf.disable_v2_behavior()
 PREFIX = "./example_data/toy-ppi"
 file = None
 N_WALKS = 50
@@ -18,7 +22,65 @@ N_WALKS = 50
 #                             """Whether to log device placement.""")
 os.environ["CUDA_VISIBLE_DEVICES"]=str(0)
 
+from ctypes import *
+from ctypes.util import *
+
+libgraphPath = '../graph_loading/libgraph.so'
+#l1 = 'libGraph.so'
+# print(find_library(l1))
+libgraph = CDLL(libgraphPath)
+libgraph.loadgraph.argtypes = [c_char_p]
+
+
 results = {}
+
+def custom_dataset(graph_dir, dataset_str):
+    MAX_LABELS = 10
+    MAX_FEATURE_SIZE = 8
+    filename = os.path.join(graph_dir, dataset_str+".data")
+    if not os.path.exists(filename):
+        raise Exception("Graph %s at '%s' do not exist"%(dataset_str, filename))
+
+    graphPath = bytes(filename, encoding='utf8')
+    libgraph.loadgraph(graphPath)
+    libgraph.getEdgePairList.restype = np.ctypeslib.ndpointer(dtype=c_int, shape=(libgraph.numberOfEdges(), 2))
+
+    print("Graph Loaded in C++")
+
+    edges = libgraph.getEdgePairList()
+    # print("Number of Edges", d.numberOfEdges())
+    # print("Number of Vertices", d.numberOfVertices())
+    # print (edges)
+    G = nx.Graph()
+    print("Loading networkx graph")
+    G.add_edges_from(edges)
+    id_map = {}
+    class_map = {}
+    i = 0
+    for n in G:
+        id_map[n] = i
+        i = i + 1
+        class_map[n] = random.randint(0,MAX_LABELS)
+        r = random.random()
+        G.node[n]['test'] = False
+        G.node[n]['val'] = False
+        G.node[n]['train_removed'] = False
+        if r >=.8 and r <.9:
+            G.node[n]['val'] = True
+        if r>= .9:
+            G.node[n]['test']=True
+    max_nodes = max(G.nodes()) + 1
+    features = np.random.rand(max_nodes,MAX_FEATURE_SIZE)
+    print ("features created")
+    toret = (G, features, id_map, None, class_map)
+    print("Returned tuple created")
+    return toret
+
+    
+def load_data(graph_dir, dataset_str):
+    if dataset_str == "ppi" or dataset_str == "reddit" or dataset_str == 'orkut' or dataset_str == 'livejournal' or dataset_str == 'patents':
+        return custom_dataset(graph_dir, dataset_str)
+
 
 def add_to_dict(k,v):
     global results
@@ -135,9 +197,10 @@ def supervised_sampling(minibatch):
         sess.run(sample2 , feed_dict)
     end_time = time.time()
     sess.close()
+    print("sampling_time:",(end_time - start_time))
     add_to_dict("SSAMPLE",(end_time - start_time))
 
-def supervised_epoch_time(PREFIX):
+def supervised_epoch_time(G,feats,id_map,walks,class_map):
     tf.reset_default_graph()
     flags = tf.app.flags
     FLAGS = flags.FLAGS
@@ -145,8 +208,9 @@ def supervised_epoch_time(PREFIX):
     FLAGS.train_prefix = PREFIX
     FLAGS.model = 'graphsage_mean'
     FLAGS.sigmoid = True
-    train_data = load_data(FLAGS.train_prefix)
-    time = train(train_data)
+    #train_data = load_data(FLAGS.train_prefix)
+    time = train((G,feats,id_map,walks,class_map))
+    print("training_time:",time)
     add_to_dict('SEPOCH',time)
 
 def del_all_flags(FLAGS):
@@ -161,7 +225,6 @@ def unsupervised_epoch_time(PREFIX):
     FLAGS = flags.FLAGS
     del_all_flags(tf.flags.FLAGS)
     from graphsage.unsupervised_train import train
-    FLAGS.train_prefix = PREFIX
     FLAGS.model = 'gcn'
     FLAGS.validate_iter = 10
     FLAGS.max_total_steps = 1000
@@ -173,29 +236,31 @@ def unsupervised_epoch_time(PREFIX):
 def run():
     global PREFIX
     import sys
-    PREFIX = sys.argv[1]
-    add_to_dict("DATASET",(PREFIX))
+    dataset_dir = sys.argv[1]
+    file_name = sys.argv[2]
+    #add_to_dict("DATASET",(PREFIX))
     is_available = tf.test.is_gpu_available(
         cuda_only=False, min_cuda_compute_capability=None
     )
     add_to_dict ("GPU",is_available)
-    G, feats, id_map, walks, class_map = load_data(PREFIX,load_walks=True)
-    print("Number of nodes {}".format(G.number_of_nodes()))
-    print("Number of Edges {}".format(G.number_of_edges()))
-    import sys
+    G, feats, id_map, walks, class_map = load_data(dataset_dir,file_name)
+    #print("Data Loading Done")
+    #print("Number of nodes {}".format(G.number_of_nodes()))
+    #print("Number of Edges {}".format(G.number_of_edges()))
+    #import sys
     if isinstance(list(class_map.values())[0], list):
         num_classes = len(list(class_map.values())[0])
     else:
         num_classes = len(set(class_map.values()))
-    time_to_do_random_walks(G)
+    #time_to_do_random_walks(G)
     minibatch = getMiniBatchIterator(G, id_map, class_map, num_classes)
-    time_to_do_adj_matrix_construction(minibatch)
+    #time_to_do_adj_matrix_construction(minibatch)
     supervised_sampling(minibatch)
-    time_for_unsupervised_sampling(G, id_map, walks , num_classes)
-    supervised_epoch_time(PREFIX)
-    unsupervised_epoch_time(PREFIX)
-    create_measurement_file()
-    print("All Done !!! ")
+    #time_for_unsupervised_sampling(G, id_map, walks , num_classes)
+    supervised_epoch_time(G,feats,id_map,walks,class_map)
+    #unsupervised_epoch_time(PREFIX)
+    #create_measurement_file()
+    #print("All Done !!! ")
 
 def print_adj_matrix_to_file():
     global PREFIX

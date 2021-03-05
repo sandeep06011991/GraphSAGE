@@ -233,8 +233,8 @@ class NodeMinibatchIterator(object):
             if self.G.node[nodeid]['test'] or self.G.node[nodeid]['val']:
                 continue
             neighbors = np.array([self.id2idx[neighbor] 
-                for neighbor in self.G.neighbors(nodeid)
-                if (not self.G[nodeid][neighbor]['train_removed'])])
+                for neighbor in self.G.neighbors(nodeid)])
+            #    if (not self.G[nodeid][neighbor]['train_removed'])])
             deg[self.id2idx[nodeid]] = len(neighbors)
             if len(neighbors) == 0:
                 continue
